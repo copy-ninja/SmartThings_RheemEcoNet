@@ -12,16 +12,18 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
+ *  Last Updated : 7/5/2015
+ *
  */
 definition(
-    name: "Rheem EcoNet (Connect)",
-    namespace: "copy-ninja",
-    author: "Jason Mok",
-    description: "Connect to Rheem EcoNet",
-    category: "SmartThings Labs",
-    iconUrl: "http://smartthings.copyninja.net/icons/Rheem_EcoNet@1x.png",
-    iconX2Url: "http://smartthings.copyninja.net/icons/Rheem_EcoNet@2x.png",
-    iconX3Url: "http://smartthings.copyninja.net/icons/Rheem_EcoNet@3x.png")
+	name: "Rheem EcoNet (Connect)",
+	namespace: "copy-ninja",
+	author: "Jason Mok",
+	description: "Connect to Rheem EcoNet",
+	category: "SmartThings Labs",
+	iconUrl: "http://smartthings.copyninja.net/icons/Rheem_EcoNet@1x.png",
+	iconX2Url: "http://smartthings.copyninja.net/icons/Rheem_EcoNet@2x.png",
+	iconX3Url: "http://smartthings.copyninja.net/icons/Rheem_EcoNet@3x.png")
 
 
 preferences {
@@ -75,7 +77,7 @@ def updated() {
 }
 def uninstalled() {
 	unschedule()
-    unsubscribe()
+	unsubscribe()
 	getAllChildDevices().each { deleteChildDevice(it.deviceNetworkId) }
 }	
 
@@ -83,7 +85,7 @@ def initialize() {
 	// Set initial states
 	state.polling = [ last: 0, rescheduler: now() ]  
 	state.data = [:]
-    state.setData = [:]
+	state.setData = [:]
 
 	// Create selected devices
 	def waterHeaterList = getWaterHeaterList()
@@ -118,12 +120,12 @@ def getSelectedDevices( settingsName ) {
 private getWaterHeaterList() { 	 
 	def deviceList = [:]
 	apiGet("/v3/eco/myequipmentcheck", [] ) { response ->
-    	if (response.status == 200) {
-        	response.data.Equipment.each { device ->
-            	device.WH.each { 
-                	def dni = [ app.id, "WaterHeater", it.EquipmentId ].join('|')
-                	//log.debug "WaterHeater DNI: " + dni
-                    state.data?.put(dni,[ 
+		if (response.status == 200) {
+			response.data.Equipment.each { device ->
+				device.WH.each { 
+					def dni = [ app.id, "WaterHeater", it.EquipmentId ].join('|')
+					//log.debug "WaterHeater DNI: " + dni
+					state.data?.put(dni,[ 
 						minTemp: it.MinTemp,
 						maxTemp: it.MaxTemp,
 						modesAvailable: it.ModesAvailable,
@@ -133,20 +135,20 @@ private getWaterHeaterList() {
 						hotWaterAvailability: it.HotWaterAvailability,
 						hotWaterRecoveryMin: it.HotWaterRecoveryMin,
 						temperatureUnit: it.TemperatureDisplayMode
-                    ])
-                    deviceList.put(dni,it.SystemName)
-                }
-            }
-        }
-    }
-    return deviceList
+					])
+					deviceList.put(dni,it.SystemName)
+				}
+			}
+		}
+	}
+	return deviceList
 }
 
 // Refresh data
 def refresh() {		
 	if (updateData()) { 
 		log.info "Refreshing data..."
-        // update last refresh
+		// update last refresh
 		state.polling?.last = now()
 
 		// get all the children and send updates
@@ -193,22 +195,22 @@ def getDeviceID(childDevice) { return childDevice.deviceNetworkId.split("\\|")[2
 
 /* Access Management */
 private login() { 
-    if (state.session?.expiration < now()) {
-    	def apiPath = (state.session?.refreshToken) ? "/v1/public/tokens/refresh" : "/v1/eco/authenticate"
-    	apiGet(apiPath, [] ) { response ->
-            if (response.status == 200) {
-                state.session = [ 
-                    accessToken: response.data.AccessToken,
-                    tokenType: response.data.TokenType,
-                    refreshToken: response.data.RefreshToken,
-                    expiration: now() + 150000
-                ]
-                return true
-            } else {
-                return false
-            }
+	if (state.session?.expiration < now()) {
+		def apiPath = (state.session?.refreshToken) ? "/v1/public/tokens/refresh" : "/v1/eco/authenticate"
+		apiGet(apiPath, [] ) { response ->
+			if (response.status == 200) {
+				state.session = [ 
+					accessToken: response.data.AccessToken,
+					tokenType: response.data.TokenType,
+					refreshToken: response.data.RefreshToken,
+					expiration: now() + 150000
+				]
+				return true
+			} else {
+				return false
+			}
 		} 
-    } else { 
+	} else { 
 		return true
 	}
 }
@@ -220,8 +222,8 @@ private apiGet(apiPath, apiParams = [], callback = {}) {
 	apiParams = [ 
 		uri: getApiURL(),
 		path: apiPath,
-        headers: ["Authorization": getApiAuth(), "X-ClientID": getApiClientID(), "X-Timestamp":now()],
-        requestContentType: "application/json",
+		headers: ["Authorization": getApiAuth(), "X-ClientID": getApiClientID(), "X-Timestamp":now()],
+		requestContentType: "application/json",
 	] + apiParams
 	
 	try {
@@ -237,13 +239,13 @@ private apiPost(apiPath, apiParams = [], callback = {}) {
 	apiParams = [ 
 		uri: getApiURL(),
 		path: apiPath,
-        headers: ["Authorization": getApiAuth(), "X-ClientID": getApiClientID(), "X-Timestamp":now()],
-        requestContentType: "application/json",
+		headers: ["Authorization": getApiAuth(), "X-ClientID": getApiClientID(), "X-Timestamp":now()],
+		requestContentType: "application/json",
 	] + apiParams
 	
 	try {
 		httpPost(apiParams) { response -> callback(response) }
-	}	catch (Error e)	{
+	} catch (Error e) {
 		log.debug "API Error: $e"
 	}
 }
@@ -251,8 +253,6 @@ private apiPost(apiPath, apiParams = [], callback = {}) {
 private getApiClientID() { return "4890422047775.apps.rheemapi.com" }
 private getApiURL() { return (settings.troubleshoot == "true") ? "https://io-myrheem-com-uyg33xguwugq.runscope.net" : "https://io.myrheem.com" }
 private getApiAuth() {
-	log.debug "session: " + state.session
-    log.debug "now: " + now()
 	if (!((state.session?.refreshToken)||(state.session?.refreshToken=="INVALID TOKEN"))) {
 		def basicAuth = settings.username + ":" + settings.password
 		return "Basic " + basicAuth.encodeAsBase64()
@@ -262,5 +262,3 @@ private getApiAuth() {
 		return state.session?.tokenType + ": " + state.session?.accessToken
 	}
 }
-
-
