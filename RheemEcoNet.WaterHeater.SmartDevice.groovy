@@ -13,6 +13,7 @@
  *  for the specific language governing permissions and limitations under the License.
  *
  *  Last updated : 7/5/2015
+ * 
  */
 metadata {
 	definition (name: "Rheem Econet Water Heater", namespace: "copy-ninja", author: "Jason Mok") {
