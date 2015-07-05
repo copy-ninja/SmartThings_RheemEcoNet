@@ -12,6 +12,7 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
+ *  Last updated : 7/5/2015
  */
 metadata {
 	definition (name: "Rheem Econet Water Heater", namespace: "copy-ninja", author: "Jason Mok") {
@@ -56,13 +57,11 @@ metadata {
 
 def parse(String description) { }
 
-// handle commands
 def poll() { updateDeviceData(parent.getDeviceData(this.device)) }
 
 def refresh() { parent.refresh() }
 
 def setHeatingSetpoint(Number heatingSetPoint) {
-	// set maximum & minimum for heating setpoint
 	def actualData = parent.getDeviceData(this.device).clone()
     def deviceData = convertTemperatureUnit(actualData.clone(), getTemperatureScale())
     
@@ -72,18 +71,28 @@ def setHeatingSetpoint(Number heatingSetPoint) {
     
 	updateDeviceData(deviceData)    
 	
-	def deviceSetData = convertTemperatureUnit(deviceData, actualData.temperatureUnit)
-	parent.setDeviceSetPoint(this.device, deviceSetData)
+	state.deviceData = convertTemperatureUnit(deviceData, actualData.temperatureUnit)
+	runIn(5, setDeviceSetPoint, [overwrite: true])
 }
 
 def heatLevelUp() { 
 	def actualData = parent.getDeviceData(this.device).clone()
 	def deviceData = convertTemperatureUnit(actualData.clone(), getTemperatureScale())
 	def heatingSetPoint = device.currentValue("heatingSetpoint")
-	actualData.setPoint = (actualData.temperatureUnit != getTemperatureScale())?((actualData.temperatureUnit=="F")?(celsiusToFahrenheit(heatingSetPoint).toInteger()):(fahrenheitToCelsius(heatingSetPoint).toInteger())):heatingSetPoint
-	actualData.setPoint = ((actualData.setPoint + 1) > actualData.maxTemp)? actualData.maxTemp : (actualData.setPoint + 1)
-	heatingSetPoint = (actualData.temperatureUnit != getTemperatureScale())?(heatingSetPoint = (actualData.temperatureUnit == "F")?(fahrenheitToCelsius(actualData.setPoint).toInteger()):(celsiusToFahrenheit(actualData.setPoint).toInteger())):(actualData.setPoint)
+	if (actualData.temperatureUnit != getTemperatureScale()) {
+		if (actualData.temperatureUnit == "C") {
+			actualData.setPoint = Math.round(fahrenheitToCelsius(heatingSetPoint)).toInteger()
+			actualData.setPoint = ((actualData.setPoint + 1) > actualData.maxTemp)? actualData.maxTemp : (actualData.setPoint + 1)
+			heatingSetPoint = Math.round(celsiusToFahrenheit(actualData.setPoint)).toInteger()
+		} else {
+			heatingSetPoint = ((heatingSetPoint + 1) > deviceData.maxTemp)? deviceData.maxTemp : (heatingSetPoint + 1)
+			actualData.setPoint = Math.round(celsiusToFahrenheit(heatingSetPoint)).toInteger()
+		}
+	} else {
+		actualData.setPoint = heatingSetPoint
+	}
 	deviceData.setPoint = heatingSetPoint
+	
 	updateDeviceData(deviceData) 
 	setHeatingSetpoint(heatingSetPoint) 
 }	
@@ -92,14 +101,23 @@ def heatLevelDown() {
 	def actualData = parent.getDeviceData(this.device).clone()
 	def deviceData = convertTemperatureUnit(actualData.clone(), getTemperatureScale())
 	def heatingSetPoint = device.currentValue("heatingSetpoint")
-	actualData.setPoint = (actualData.temperatureUnit != getTemperatureScale())?((actualData.temperatureUnit=="F")?(celsiusToFahrenheit(heatingSetPoint).toInteger()):(fahrenheitToCelsius(heatingSetPoint).toInteger())):heatingSetPoint
-	actualData.setPoint = ((actualData.setPoint - 1) > actualData.maxTemp)? actualData.maxTemp : (actualData.setPoint - 1)
-	heatingSetPoint = (actualData.temperatureUnit != getTemperatureScale())?(heatingSetPoint = (actualData.temperatureUnit == "F")?(fahrenheitToCelsius(actualData.setPoint).toInteger()):(celsiusToFahrenheit(actualData.setPoint).toInteger())):(actualData.setPoint)
+	if (actualData.temperatureUnit != getTemperatureScale()) {
+		if (actualData.temperatureUnit == "C") {
+			actualData.setPoint = Math.round(fahrenheitToCelsius(heatingSetPoint)).toInteger()
+			actualData.setPoint = ((actualData.setPoint - 1) < actualData.minTemp)? actualData.minTemp : (actualData.setPoint - 1)
+			heatingSetPoint = Math.round(celsiusToFahrenheit(actualData.setPoint)).toInteger()
+		} else {
+			heatingSetPoint = ((heatingSetPoint - 1) < deviceData.minTemp)? deviceData.minTemp : (heatingSetPoint - 1)
+			actualData.setPoint = Math.round(celsiusToFahrenheit(heatingSetPoint)).toInteger()
+		}
+	} else {
+		actualData.setPoint = heatingSetPoint
+	}
 	deviceData.setPoint = heatingSetPoint
+	
 	updateDeviceData(deviceData) 
 	setHeatingSetpoint(heatingSetPoint) 
 }
-
 
 def updateDeviceData(actualData = []) {
 	def deviceData = convertTemperatureUnit(actualData, getTemperatureScale())
@@ -108,18 +126,20 @@ def updateDeviceData(actualData = []) {
 
 def convertTemperatureUnit(actualData = [], temperatureUnit) {
 	def deviceData = actualData.clone()
-    if (deviceData.temperatureUnit != temperatureUnit) { 
+	if (deviceData.temperatureUnit != temperatureUnit) { 
 		if (deviceData.temperatureUnit == "F") {
 			deviceData.temperatureUnit = "C"
-			deviceData.setPoint = fahrenheitToCelsius(deviceData.setPoint) as Integer
-			deviceData.maxTemp = fahrenheitToCelsius(deviceData.maxTemp) as Integer
-			deviceData.minTemp = fahrenheitToCelsius(deviceData.minTemp) as Integer
+			deviceData.setPoint = Math.round(fahrenheitToCelsius(deviceData.setPoint)).toInteger() as Integer
+			deviceData.maxTemp = Math.round(fahrenheitToCelsius(deviceData.maxTemp)).toInteger() as Integer
+			deviceData.minTemp = Math.round(fahrenheitToCelsius(deviceData.minTemp)).toInteger() as Integer
 		} else {
 			deviceData.temperatureUnit = "F"
-			deviceData.setPoint = celsiusToFahrenheit(deviceData.setPoint) as Integer
-			deviceData.maxTemp = celsiusToFahrenheit(deviceData.maxTemp) as Integer
-			deviceData.minTemp = celsiusToFahrenheit(deviceData.minTemp) as Integer
+			deviceData.setPoint = Math.round(celsiusToFahrenheit(deviceData.setPoint)).toInteger() as Integer
+			deviceData.maxTemp = Math.round(celsiusToFahrenheit(deviceData.maxTemp)).toInteger() as Integer
+			deviceData.minTemp = Math.round(celsiusToFahrenheit(deviceData.minTemp)).toInteger() as Integer
 		}
 	}
-    return deviceData
+	return deviceData
 }
+
+def setDeviceSetPoint() { parent.setDeviceSetPoint(this.device, state.deviceData) }
