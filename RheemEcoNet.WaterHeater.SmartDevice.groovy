@@ -64,14 +64,11 @@ def refresh() { parent.refresh() }
 
 def setHeatingSetpoint(Number heatingSetPoint) {
 	def actualData = parent.getDeviceData(this.device).clone()
-    def deviceData = convertTemperatureUnit(actualData.clone(), getTemperatureScale())
-    
+	def deviceData = convertTemperatureUnit(actualData.clone(), getTemperatureScale())
 	heatingSetPoint = (heatingSetPoint < deviceData.minTemp)? deviceData.minTemp : heatingSetPoint
 	heatingSetPoint = (heatingSetPoint > deviceData.maxTemp)? deviceData.maxTemp : heatingSetPoint
 	deviceData.setPoint = heatingSetPoint
-    
 	updateDeviceData(deviceData)    
-	
 	state.deviceData = convertTemperatureUnit(deviceData, actualData.temperatureUnit)
 	runIn(5, setDeviceSetPoint, [overwrite: true])
 }
@@ -90,10 +87,10 @@ def heatLevelUp() {
 			actualData.setPoint = Math.round(celsiusToFahrenheit(heatingSetPoint)).toInteger()
 		}
 	} else {
+		heatingSetPoint = ((heatingSetPoint + 1) > deviceData.maxTemp)? deviceData.maxTemp : (heatingSetPoint + 1)
 		actualData.setPoint = heatingSetPoint
 	}
 	deviceData.setPoint = heatingSetPoint
-	
 	updateDeviceData(deviceData) 
 	setHeatingSetpoint(heatingSetPoint) 
 }	
@@ -112,10 +109,10 @@ def heatLevelDown() {
 			actualData.setPoint = Math.round(celsiusToFahrenheit(heatingSetPoint)).toInteger()
 		}
 	} else {
+		heatingSetPoint = ((heatingSetPoint - 1) < deviceData.minTemp)? deviceData.minTemp : (heatingSetPoint - 1)
 		actualData.setPoint = heatingSetPoint
 	}
 	deviceData.setPoint = heatingSetPoint
-	
 	updateDeviceData(deviceData) 
 	setHeatingSetpoint(heatingSetPoint) 
 }
