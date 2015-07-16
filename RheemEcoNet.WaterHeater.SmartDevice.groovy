@@ -12,8 +12,7 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
- *  Last updated : 7/5/2015
- * 
+ *  Last updated : 7/15/2015
  */
 metadata {
 	definition (name: "Rheem Econet Water Heater", namespace: "copy-ninja", author: "Jason Mok") {
@@ -25,6 +24,7 @@ metadata {
 		
 		command "heatLevelUp"
 		command "heatLevelDown"
+		command "updateDeviceData", ["string"]
 	}
 
 	simulator { }
@@ -64,11 +64,14 @@ def refresh() { parent.refresh() }
 
 def setHeatingSetpoint(Number heatingSetPoint) {
 	def actualData = parent.getDeviceData(this.device).clone()
-	def deviceData = convertTemperatureUnit(actualData.clone(), getTemperatureScale())
+    def deviceData = convertTemperatureUnit(actualData.clone(), getTemperatureScale())
+    
 	heatingSetPoint = (heatingSetPoint < deviceData.minTemp)? deviceData.minTemp : heatingSetPoint
 	heatingSetPoint = (heatingSetPoint > deviceData.maxTemp)? deviceData.maxTemp : heatingSetPoint
 	deviceData.setPoint = heatingSetPoint
+    
 	updateDeviceData(deviceData)    
+	
 	state.deviceData = convertTemperatureUnit(deviceData, actualData.temperatureUnit)
 	runIn(5, setDeviceSetPoint, [overwrite: true])
 }
@@ -91,6 +94,7 @@ def heatLevelUp() {
 		actualData.setPoint = heatingSetPoint
 	}
 	deviceData.setPoint = heatingSetPoint
+	
 	updateDeviceData(deviceData) 
 	setHeatingSetpoint(heatingSetPoint) 
 }	
@@ -113,11 +117,12 @@ def heatLevelDown() {
 		actualData.setPoint = heatingSetPoint
 	}
 	deviceData.setPoint = heatingSetPoint
+	
 	updateDeviceData(deviceData) 
 	setHeatingSetpoint(heatingSetPoint) 
 }
 
-def updateDeviceData(actualData = []) {
+def updateDeviceData(actualData) {
 	def deviceData = convertTemperatureUnit(actualData, getTemperatureScale())
 	sendEvent(name: "heatingSetpoint", value: deviceData.setPoint, unit: getTemperatureScale())
 }
